@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 from api.swagger import spec
-from api.controllers.todo_controller import bp as todo_bp
+
 from api.middleware import middleware
 from api.responses import success_response
 from infrastructure.databases import init_db
@@ -8,14 +8,14 @@ from config import Config
 from flasgger import Swagger
 from config import SwaggerConfig
 from flask_swagger_ui import get_swaggerui_blueprint
-
-
+from api.routes import register_routes
+import infrastructure.models
 def create_app():
     app = Flask(__name__)
     Swagger(app)
     # Đăng ký blueprint trước
-    app.register_blueprint(todo_bp)
-
+    #app.register_blueprint(todo_bp)
+    register_routes(app)
      # Thêm Swagger UI blueprint
     SWAGGER_URL = '/docs'
     API_URL = '/swagger.json'
@@ -35,14 +35,23 @@ def create_app():
     middleware(app)
 
     # Register routes
-    with app.test_request_context():
+    ''' with app.test_request_context():
         for rule in app.url_map.iter_rules():
             # Thêm các endpoint khác nếu cần
             if rule.endpoint.startswith(('todo.', 'course.', 'user.')):
                 view_func = app.view_functions[rule.endpoint]
                 print(f"Adding path: {rule.rule} -> {view_func}")
+                spec.path(view=view_func)'''
+    # Sửa đoạn này trong file app.py (khoảng dòng 42)
+    with app.app_context(): # Dùng app_context thay vì test_request_context
+        for rule in app.url_map.iter_rules():
+            # Quét tất cả ngoại trừ các route mặc định của hệ thống
+            if not rule.endpoint.startswith(('static', 'swagger')):
+                view_func = app.view_functions[rule.endpoint]
+                print(f"Adding path: {rule.rule} -> {view_func}")
                 spec.path(view=view_func)
 
+                
     @app.route("/swagger.json")
     def swagger_json():
         return jsonify(spec.to_dict())
@@ -53,3 +62,5 @@ def create_app():
 if __name__ == '__main__':
     app = create_app()
     app.run(host='0.0.0.0', port=9999, debug=True)
+
+
